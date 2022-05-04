@@ -1,4 +1,4 @@
 variable "application" {
-    type = string
-    default = "banking_app"
+  type    = string
+  default = "banking_app"
 }

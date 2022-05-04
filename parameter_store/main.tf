@@ -1,7 +1,11 @@
+locals {
+  database_endpoint = "database-1.crbxzjvnu4bk.us-east-1.rds.amazonaws.com"
+}
+
 resource "aws_ssm_parameter" "database_endpoint" {
   name  = "/${var.application}/db/endpoint"
   type  = "String"
-  value = "database-1.crbxzjvnu4bk.us-east-1.rds.amazonaws.com"
+  value = local.database_endpoint
 }
 
 resource "aws_ssm_parameter" "database_user" {
@@ -15,4 +19,3 @@ resource "aws_ssm_parameter" "database_password" {
   type  = "SecureString"
   value = "myadminpassword"
 }
-
