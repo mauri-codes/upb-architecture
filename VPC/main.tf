@@ -99,3 +99,9 @@ resource "aws_route_table_association" "web_rt_association" {
   subnet_id      = aws_subnet.subnets["${each.key}"].id
   route_table_id = aws_route_table.upb_rt.id
 }
+
+resource "aws_ssm_parameter" "vpc_id" {
+  name  = "/vpc/vpc_id"
+  type  = "String"
+  value = aws_vpc.upb_vpc.id
+}
