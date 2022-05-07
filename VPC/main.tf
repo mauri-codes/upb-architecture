@@ -51,7 +51,7 @@ locals {
   }
 }
 
-resource "aws_vpc" "upb_vpc" {
+resource "aws_vpc" "upb_vpc" { # aws_vpc.upb_vpc.id
   cidr_block = "10.16.0.0/16"
   assign_generated_ipv6_cidr_block=true
   enable_dns_hostnames=true
@@ -59,7 +59,7 @@ resource "aws_vpc" "upb_vpc" {
       Name="upb_vpc"
   }
 }
-resource "aws_subnet" "subnets" {
+resource "aws_subnet" "subnets" { 
   for_each   = local.subnets
   vpc_id     = aws_vpc.upb_vpc.id
   cidr_block = each.value.cidr_block
@@ -98,4 +98,10 @@ resource "aws_route_table_association" "web_rt_association" {
   }
   subnet_id      = aws_subnet.subnets["${each.key}"].id
   route_table_id = aws_route_table.upb_rt.id
+}
+
+resource "aws_ssm_parameter" "vpc_id" {
+  name  = "/vpc/id"
+  type  = "String"
+  value = aws_vpc.upb_vpc.id
 }
