@@ -1,10 +1,8 @@
 #!/bin/bash -xe
 
-echo "hhhhhhhhhhhhhhhhhhhh"
 sudo yum install -y httpd wget cowsay
-curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.32.0/install.sh | bash
-. ~/.nvm/nvm.sh
-nvm install 14
+curl -sL https://rpm.nodesource.com/setup_14.x | sudo bash -
+sudo yum install -y nodejs
 node --version
 sudo systemctl enable httpd
 sudo systemctl start httpd

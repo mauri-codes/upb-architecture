@@ -1,5 +1,6 @@
 locals {
     instance_ami = "ami-0022f774911c1d690"
+    subnet_ids   = data.aws_ssm_parameters_by_path.vpc_subnets.values
 }
 
 resource "aws_launch_template" "website_lt" {
@@ -13,7 +14,7 @@ resource "aws_launch_template" "website_lt" {
 
   network_interfaces {
     associate_public_ip_address = true
-    security_groups = [aws_security_group.website_sg.id]
+    security_groups = [aws_security_group.upb_instance_sg.id]
   }
 
 #   vpc_security_group_ids = 
@@ -29,37 +30,15 @@ resource "aws_launch_template" "website_lt" {
   user_data = filebase64("${path.module}/user_data.sh")
 }
 
-resource "aws_security_group" "website_sg" {
-  name        = "website_sg-2"
-  vpc_id      = data.aws_ssm_parameter.vpc_id.value
-
-  ingress {
-    description      = "htpp traffic"
-    from_port        = 80
-    to_port          = 80
-    protocol         = "http"
-  }
-  
-  ingress {
-    description      = "ssh traffic"
-    from_port        = 22
-    to_port          = 22
-    protocol         = "ssh"
-  }
-  tags = {
-    Name = "website_sg"
-  }
-}
-
 resource "aws_autoscaling_group" "website_asg" {
-  availability_zones = ["us-east-1a", "us-east-1b", "us-east-1c"]
+  vpc_zone_identifier = local.subnet_ids
   desired_capacity   = 2
   max_size           = 3
   min_size           = 1
   
-  target_group_arns  = [
-    aws_lb_target_group.website_tg.arn
-  ]
+  # target_group_arns  = [
+  #   aws_lb_target_group.website_tg.arn
+  # ]
 
   launch_template {
     id      = aws_launch_template.website_lt.id
@@ -68,8 +47,88 @@ resource "aws_autoscaling_group" "website_asg" {
 }
 
 resource "aws_lb_target_group" "website_tg" {
-  name        = "website_tg"
+  name        = "website-tg"
   port     = 80
   protocol = "HTTP"
-  vpc_id   = data.aws_ssm_parameter.vpc_id.value
+  vpc_id   = data.aws_ssm_parameter.vpc_id_parameter.value
+}
+
+resource "aws_security_group" "upb_load_balancer_sg" {
+  name        = "upb-load-balancer-sg"
+  vpc_id      = data.aws_ssm_parameter.vpc_id_parameter.value
+
+  ingress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+  }
+  
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+  }
+
+
+  tags = {
+    Name = "upb-load-balancer-sg"
+  }
+}
+
+resource "aws_security_group" "upb_instance_sg" {
+  name        = "upb-instance-sg"
+  vpc_id      = data.aws_ssm_parameter.vpc_id_parameter.value
+
+  ingress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+  }
+  
+  # ingress {
+  #   description      = "http traffic"
+  #   from_port        = 80
+  #   to_port          = 80
+  #   protocol         = "tcp"
+  #   cidr_blocks      = ["0.0.0.0/0"]
+  # }
+
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+  }
+ 
+  tags = {
+    Name = "upb-instance-sg"
+  }
+}
+
+resource "aws_lb" "upb_alb" {
+  name               = "upb-alb"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.upb_load_balancer_sg.id]
+  subnets            = local.subnet_ids
+
+}
+
+resource "aws_autoscaling_attachment" "asg_attachment" {
+  autoscaling_group_name = aws_autoscaling_group.website_asg.id
+  lb_target_group_arn    = aws_lb_target_group.website_tg.arn
+}
+
+resource "aws_lb_listener" "alb_listener" {
+  load_balancer_arn = aws_lb.upb_alb.arn
+  port              = "80"
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.website_tg.arn
+  }
 }
